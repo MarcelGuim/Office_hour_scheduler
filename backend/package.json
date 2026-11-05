@@ -1,0 +1,17 @@
+{
+  "name": "office-hours-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "migrate": "node scripts/migrate.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

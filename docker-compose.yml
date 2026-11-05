@@ -1,0 +1,32 @@
+# Local development only. Production runs on Kubernetes (k8s/).
+# Copy .env.example to .env first.
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: officehours
+      POSTGRES_USER: officehours
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # so tests and psql on the laptop can reach it
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U officehours -d officehours"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Same path as the cluster: a one-off migration step instead of init scripts.
+  migrate:
+    build: ./backend
+    command: ["node", "scripts/migrate.js"]
+    environment:
+      DATABASE_URL: postgres://officehours:${POSTGRES_PASSWORD}@postgres:5432/officehours
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

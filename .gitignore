@@ -1,0 +1,9 @@
+node_modules/
+.env
+.DS_Store
+CLAUDE.md
+idea.md
+ai-session.md
+api-reference.md
+project_proposal.md
+Project_members.pdf
