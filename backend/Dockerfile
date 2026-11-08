@@ -9,6 +9,7 @@ RUN npm ci --omit=dev
 COPY migrations ./migrations
 COPY scripts ./scripts
 COPY src ./src
+COPY public ./public
 
 USER node
 EXPOSE 8080

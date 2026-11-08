@@ -211,28 +211,44 @@ State lives only in PostgreSQL, so a pod restart loses nothing. The next loop on
 
 ## 6. Auth
 
-- `POST /auth/register`: students only. bcrypt cost 12.
-- `POST /auth/login`: returns an access JWT (HS256, 15 min, claims `sub`, `role`, `name`) in the body. It also sets a refresh-token cookie: `httpOnly`, `SameSite=Strict`, `Path=/auth`, 7 days, `Secure` only when HTTPS is enabled.
-- `POST /auth/refresh`: rotates the token (revokes the old one, issues a new one). If a revoked token is presented again, it was probably stolen, so all of that user's tokens are revoked.
-- `POST /auth/logout`: revokes the current token and clears the cookie. Access JWTs stay valid until they expire (at most 15 min). This is accepted and documented.
-- Professors are created by `scripts/seed-professors.js`, which reads names, emails and passwords from the environment (a Kubernetes Secret in the cluster). Nothing secret is committed.
+- `POST /auth/register`: students only (a `role` in the body is ignored). Email stored lowercased. bcrypt (bcryptjs) cost 10 via `BCRYPT_COST`; password 8 characters to 72 bytes (bcrypt ignores bytes past 72).
+- `POST /auth/login`: access JWT (HS256, 15 min, claims `sub`, `role`, `name`) in the body; refresh token in a cookie `refresh_token`: `httpOnly`, `SameSite=Strict`, `Path=/auth`, 7 days, `Secure` only when `COOKIE_SECURE=true` (HTTPS). Same 401 message for a wrong password and an unknown email, and an unknown email is checked against a dummy hash so the response time does not reveal which emails exist.
+- `POST /auth/refresh`: rotation: the token is used up in one `UPDATE ... WHERE revoked_at IS NULL RETURNING`, so two concurrent uses cannot both succeed. A token used up more than 10 seconds ago and presented again is treated as stolen: all of that user's refresh tokens are revoked. Within 10 seconds it is treated as two tabs racing and just gets 401.
+- `POST /auth/logout`: revokes the current refresh token and clears the cookie; always 204. Access JWTs stay valid until they expire (at most 15 min). Accepted and documented.
+- `requireAuth` / `requireRole(role)` in `modules/auth/auth.middleware.js` guard the other modules' routes: 401 for a missing or bad token, 403 for the wrong role.
+- Professors: `scripts/seed-professors.js` reads `SEED_PROFESSORS`, a JSON array of `{name, email, password}`, from the environment (`.env` locally, a Kubernetes Secret in the cluster). Re-running updates name and password; an email that belongs to a student is refused. Nothing secret is committed.
+- `JWT_SECRET` must be at least 32 characters; the app refuses to start otherwise.
 
 ## 7. Endpoints (24)
 
-They are the same as `api-reference.md` except:
+The same as `api-reference.md` except as listed here. Swagger (`/docs`) is the exact, current reference.
 - Added `POST /auth/refresh` and `POST /auth/logout`.
-- `POST /auth/register`: `role` and `inviteCode` are removed.
-- Office hours gain `location`: in the create request, the professor views and the student view.
-- `POST /student/bookings`: new 409 for already booked this session. `{id}` in `DELETE /student/bookings/{id}` is the office hour id. The booking `id` in responses equals `officeHourId`.
-- `POST /student/waitlist`: 400 when the slots span courses or days. `GET /student/waitlist` also returns `courseId` and `sessionDate`.
-- `GET /offers/{token}`: `status` can also be `CANCELLED`.
+- `POST /auth/register`: `role` and `inviteCode` removed (students only).
+- Office hours gain `location`: in the create request, the professor views and the student view. Lists also return `sessionDate` (the Toronto day) and `courseCode`; the professor list returns `offerRoundOpen`.
+- `POST /professor/office-hours`: times must be ISO 8601 with a zone (`Z` or `+hh:mm`).
+- `DELETE /professor/office-hours/{id}`: 400 if the slot has started; cancelling twice is 204.
+- `POST /student/bookings`: new 409 for already booked this session. `{id}` in `DELETE /student/bookings/{id}` is the office hour id; the booking `id` in responses equals `officeHourId`. `GET /student/bookings` includes past bookings and ones the professor cancelled (`cancelled: true`).
+- `POST /student/waitlist`: 400 when the slots span courses or days; 409 when I already have a booking or an entry that day. `GET /student/waitlist` also returns `courseId`, `courseCode`, `sessionDate` and `officeHours` (the slots).
+- `GET /offers/{token}`: always 200 for a known token (404 unknown), with `status` one of `PENDING`, `WAITING` (said yes, higher ranks still deciding), `BOOKED`, `DECLINED`, `EXPIRED`, `CANCELLED`. The proposal's 410 moved to `respond`.
+- `POST /offers/{token}/respond`: `interested` must be a JSON boolean. Result `BOOKED`, `WAITING`, `DECLINED`, or `NOT_AWARDED` (said yes but could not get it). 409 already answered; 410 expired, cancelled or round closed.
 - `GET /health`: checks the database, so use it as the **readiness** probe only. If liveness used it too, a database outage would restart every backend pod. Liveness should be a plain TCP or process check (note for Andrew).
+- Local testing only, not counted: `GET /dev/mailbox` (enabled by `DEV_MAILBOX=true`, which only `docker-compose.yml` sets) lists queued emails for `/mailbox.html`.
 
 ## 8. Configuration (environment variables)
 
-`DATABASE_URL`, `JWT_SECRET`, `OFFER_BATCH_SIZE=3`, `OFFER_WINDOW_SECONDS=300`, `WORKER_INTERVAL_MS=2000`, `PUBLIC_BASE_URL`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `COOKIE_SECURE=false`, `PORT=8080`.
+`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` (separate fields, no URL, so the password needs no escaping), `JWT_SECRET`, `OFFER_BATCH_SIZE=3`, `OFFER_WINDOW_SECONDS=300`, `WORKER_INTERVAL_MS=2000`, `PUBLIC_BASE_URL`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `COOKIE_SECURE=false`, `PORT=8080`, `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `EMAIL_FROM`, `OUTBOX_INTERVAL_MS=2000`, `DEV_MAILBOX=false`, `ACCESS_TOKEN_TTL_SECONDS=900`, `REFRESH_TOKEN_TTL_DAYS=7`, `BCRYPT_COST=10`. Seed script only: `SEED_PROFESSORS`.
 
 ## 9. Code layout
+
+One folder per module. Each request goes routes → controller → service → model → PostgreSQL.
+
+| File | Job | Must not |
+|---|---|---|
+| `X.routes.js` | URL, Swagger comment, validation middleware, then the controller | contain logic |
+| `X.validation.js` | express-validator rules for the request's shape (fields, formats, UUIDs, time order); ends with the shared `validate` (400 `{"error"}`) | touch the database |
+| `X.controller.js` | read `req`, call the service, pick the status code and body | contain SQL or rules |
+| `X.services.js` | rules that need data ("slot taken", "not enrolled"), transactions via `withTransaction`; throws `HttpError` | know about `req`/`res` |
+| `X.model.js` | the SQL for its tables, and row → API object mapping (`starts_at` → `startsAt`); functions take an optional transaction `client` | contain rules |
 
 ```
 backend/
@@ -241,20 +257,31 @@ backend/
   scripts/migrate.js  scripts/seed-professors.js
   src/
     server.js       start HTTP server and loops, graceful shutdown on SIGTERM
-    app.js          Express app (exported for tests)
-    config.js  db.js (pool + withTransaction helper with retry)
-    auth/           jwt, password, middleware (requireRole)
-    routes/         auth, professor, student, offers, health
-    services/       booking.js, rounds.js (open/resolve/award), waitlist.js
-    worker/         rounds-loop.js, outbox-loop.js
-    email/          mailer.js (nodemailer)
+    app.js          Express app (exported for tests); mounts every module's routes
+    config.js       environment variables
+    db.js           pool + withTransaction helper with retry
+    errors.js       HttpError and the {"error"} handler
+    validation.js   shared `validate` middleware for express-validator
+    swagger.js      Swagger UI at /docs, OpenAPI JSON at /docs.json
+    modules/
+      health/       routes, controller, services, model (no validation: no input)
+      auth/         register, login, refresh, logout; JWT middleware (requireRole)
+      courses/      professor courses, browse, enrollments (incl. drop cascade)
+      officeHours/  professor slots, student view, bookings
+      waitlist/     join, list, leave
+      offers/       rounds (open/resolve/award), offer links, worker loop
+    email/          mailer + outbox loop
   public/           plain HTML + JS frontend
   test/
-docker-compose.yml  (postgres + backend; runs migrations on start)
+docker-compose.yml  (postgres, migrate, backend)
 k8s/                Andrew
 ```
 
+URLs stay as designed (`/professor/...`, `/student/...`); modules are split by domain, not by role, because one process (for example cancel → offer round → award) spans roles.
+
 ## 10. Tests (against a real PostgreSQL)
+
+Tests run on a separate database, `<DB_NAME>_test`, on the Compose PostgreSQL (`test/helpers.js` creates and migrates it, and empties it before each file). Run with `cd backend && npm test` while `docker compose up -d postgres` is running.
 
 The plan is Node's built-in `node:test` plus `supertest`, with no other framework. **OPEN:** tell me if you'd rather use Jest.
 

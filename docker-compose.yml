@@ -1,32 +1,54 @@
-# Local development only. Production runs on Kubernetes (k8s/).
-# Copy .env.example to .env first.
-
 services:
   postgres:
-    image: postgres:17
+    image: postgres:18
     environment:
-      POSTGRES_DB: officehours
-      POSTGRES_USER: officehours
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME in .env}
+      POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     ports:
-      - "5432:5432" # so tests and psql on the laptop can reach it
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U officehours -d officehours"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # Same path as the cluster: a one-off migration step instead of init scripts.
+  # One-off step: applies backend/migrations, then exits.
   migrate:
     build: ./backend
     command: ["node", "scripts/migrate.js"]
-    environment:
-      DATABASE_URL: postgres://officehours:${POSTGRES_PASSWORD}@postgres:5432/officehours
+    environment: &db-env
+      DB_HOST: postgres # the service name above, resolved on Compose's default network
+      DB_PORT: 5432 # port inside the network, not the laptop port
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
     depends_on:
       postgres:
         condition: service_healthy
+
+  # The API. Starts only after the migrations succeeded.
+  backend:
+    build: ./backend
+    environment:
+      <<: *db-env
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (at least 32 characters)}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080} # base of the links in offer emails
+      OFFER_WINDOW_SECONDS: ${OFFER_WINDOW_SECONDS:-300} # lower it in .env to test faster
+      # Email: empty SMTP_USER = emails are only printed to the log.
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
+      # Local testing only: /mailbox.html shows queued emails. Never set in the cluster.
+      DEV_MAILBOX: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
