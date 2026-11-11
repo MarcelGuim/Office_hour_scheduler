@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Office hours: professor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="notice" class="notice" hidden></div>
+  <header>
+    <h1>Office hours <span class="muted" id="who"></span></h1>
+    <button class="secondary" id="logout">Log out</button>
+  </header>
+  <main>
+    <section>
+      <h2>New office hour</h2>
+      <p class="muted">One student per office hour. Times are Toronto time.</p>
+      <form class="inline" id="new-slot">
+        <label>Course <select name="courseId" id="slot-course" required></select></label>
+        <label>Date <input name="date" type="date" required></label>
+        <label>From <input name="start" type="time" required></label>
+        <label>To <input name="end" type="time" required></label>
+        <label>Location <input name="location" required maxlength="200" placeholder="BA 1234"></label>
+        <button type="submit">Add</button>
+      </form>
+    </section>
+    <section>
+      <h2>My office hours</h2>
+      <div class="row">
+        <label>Course <select id="filter-course"><option value="">All courses</option></select></label>
+        <label class="row"><input type="checkbox" id="show-past"> show past and cancelled</label>
+      </div>
+      <div id="slots"></div>
+    </section>
+    <section>
+      <h2>My courses</h2>
+      <div id="courses"></div>
+      <h3>New course</h3>
+      <form class="inline" id="new-course">
+        <input name="code" placeholder="Code, e.g. ECE1779" required maxlength="20">
+        <input name="name" placeholder="Name" required maxlength="200">
+        <button type="submit">Create</button>
+      </form>
+    </section>
+  </main>
+  <script type="module" src="/js/professor.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Office hours: log in</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="notice" class="notice" hidden></div>
+  <header><h1>Office hours</h1></header>
+  <main class="auth">
+    <section>
+      <h2>Log in</h2>
+      <form id="login">
+        <label>Email <input name="email" type="email" autocomplete="username" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Log in</button>
+      </form>
+    </section>
+    <section>
+      <h2>New student? Create an account</h2>
+      <p class="muted">Professor accounts are created by the team.</p>
+      <form id="register">
+        <label>Name <input name="name" required maxlength="100"></label>
+        <label>Email <input name="email" type="email" autocomplete="username" required></label>
+        <label>Password (at least 8 characters)
+          <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Create account</button>
+      </form>
+    </section>
+  </main>
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>

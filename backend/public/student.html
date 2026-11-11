@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Office hours: student</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="notice" class="notice" hidden></div>
+  <header>
+    <h1>Office hours <span class="muted" id="who"></span></h1>
+    <button class="secondary" id="logout">Log out</button>
+  </header>
+  <main>
+    <section>
+      <h2>Office hours of my courses</h2>
+      <p class="muted">Times are Toronto time. Taken slots can be waitlisted: tick the ones
+        (same course, same day) you would accept and join; when one frees up you get an email.</p>
+      <div class="row"><label>Course <select id="slot-course"><option value="">All my courses</option></select></label></div>
+      <div id="slots"></div>
+    </section>
+    <section>
+      <h2>My bookings</h2>
+      <div id="bookings"></div>
+    </section>
+    <section>
+      <h2>My waitlist</h2>
+      <div id="waitlist"></div>
+    </section>
+    <section>
+      <h2>My courses</h2>
+      <div id="enrollments"></div>
+      <h3>Find a course</h3>
+      <form class="inline" id="search">
+        <input name="search" placeholder="Code or name, e.g. ECE1779" maxlength="100">
+        <button type="submit">Search</button>
+      </form>
+      <div id="courses"></div>
+    </section>
+  </main>
+  <script type="module" src="/js/student.js"></script>
+</body>
+</html>
