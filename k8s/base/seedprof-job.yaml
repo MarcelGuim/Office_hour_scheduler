@@ -1,0 +1,39 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-professor
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed-professor
+          image: registry.digitalocean.com/ece1779/office-hour-scheduler:1.0
+          imagePullPolicy: IfNotPresent
+          command: ["node", "scripts/seed-professors.js"]
+          env:
+          - name: SEED_PROFESSORS
+            valueFrom:
+              secretKeyRef:
+                name: api-secret
+                key: SEED_PROFESSORS
+          - name: DB_HOST
+            value: postgres
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_DB
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_PASSWORD

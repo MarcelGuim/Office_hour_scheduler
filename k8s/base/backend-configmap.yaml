@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  PORT: "3000"
+  PUBLIC_BASE_URL: "http://209.38.10.188:8080"
