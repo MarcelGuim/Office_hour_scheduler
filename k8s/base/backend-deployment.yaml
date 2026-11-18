@@ -17,7 +17,7 @@ spec:
           ports:
             - containerPort: 3000
               name: http  
-          image: registry.digitalocean.com/ece1779/office-hour-scheduler:1.0
+          image: registry.digitalocean.com/ece1779/office-hour-scheduler:1.1
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
@@ -30,6 +30,11 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: PUBLIC_BASE_URL
+            - name: COOKIE_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: COOKIE_SECURE
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -40,6 +45,22 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: JWT_SECRET
+            # Email through the Gmail API (DigitalOcean blocks outbound SMTP).
+            - name: GMAIL_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: GMAIL_CLIENT_ID
+            - name: GMAIL_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: GMAIL_CLIENT_SECRET
+            - name: GMAIL_REFRESH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: GMAIL_REFRESH_TOKEN
             - name: DB_HOST
               value: postgres
             - name: DB_PORT

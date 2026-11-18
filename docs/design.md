@@ -236,7 +236,7 @@ The same as `api-reference.md` except as listed here. Swagger (`/docs`) is the e
 
 ## 8. Configuration (environment variables)
 
-`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` (separate fields, no URL, so the password needs no escaping), `JWT_SECRET`, `OFFER_BATCH_SIZE=3`, `OFFER_WINDOW_SECONDS=300`, `WORKER_INTERVAL_MS=2000`, `PUBLIC_BASE_URL`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `COOKIE_SECURE=false`, `PORT=8080`, `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `EMAIL_FROM`, `OUTBOX_INTERVAL_MS=2000`, `DEV_MAILBOX=false`, `ACCESS_TOKEN_TTL_SECONDS=900`, `REFRESH_TOKEN_TTL_DAYS=7`, `BCRYPT_COST=10`. Seed script only: `SEED_PROFESSORS`.
+`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` (separate fields, no URL, so the password needs no escaping), `JWT_SECRET`, `OFFER_BATCH_SIZE=3`, `OFFER_WINDOW_SECONDS=300`, `WORKER_INTERVAL_MS=2000`, `PUBLIC_BASE_URL`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` (Gmail API over HTTPS; DigitalOcean blocks outbound SMTP), `COOKIE_SECURE=false`, `PORT=8080`, `EMAIL_FROM`, `OUTBOX_INTERVAL_MS=2000`, `DEV_MAILBOX=false`, `ACCESS_TOKEN_TTL_SECONDS=900`, `REFRESH_TOKEN_TTL_DAYS=7`, `BCRYPT_COST=10`. Seed script only: `SEED_PROFESSORS`.
 
 ## 9. Code layout
 

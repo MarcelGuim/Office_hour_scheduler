@@ -15,6 +15,8 @@ const baseDb = databaseConfig();
 const testDbName = `${baseDb.database}_test`;
 process.env.DB_NAME = testDbName; // everything after this point uses the test database
 process.env.BCRYPT_COST ??= '4'; // the minimum: keeps tests fast, real cost is checked elsewhere
+// npm test loads ../.env, which may hold real Gmail credentials: tests must never send email.
+delete process.env.GMAIL_REFRESH_TOKEN;
 
 async function ensureTestDatabase() {
   const admin = new pg.Client(baseDb);

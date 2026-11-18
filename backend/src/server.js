@@ -16,7 +16,7 @@ const app = createApp();
 
 const server = app.listen(config.port, () => {
   console.log(`listening on port ${config.port}`);
-  if (!config.smtp) console.log('no SMTP configured: emails are printed to this log');
+  console.log(config.gmail ? 'emails are sent through the Gmail API' : 'Gmail not configured: emails are printed to this log');
   if (config.devMailbox) console.log('DEV_MAILBOX is on: GET /dev/mailbox shows queued emails (local testing only)');
 });
 

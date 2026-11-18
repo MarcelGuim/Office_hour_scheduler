@@ -10,7 +10,7 @@ beforeEach(resetDatabase);
 after(closePool);
 
 test('the outbox loop sends due emails once and marks them sent', async (t) => {
-  t.mock.method(console, 'log', () => {}); // no SMTP in tests: the mailer prints instead
+  t.mock.method(console, 'log', () => {}); // no Gmail in tests: the mailer prints instead
   await enqueueEmail({ to: 'a@example.com', subject: 'One', body: 'x' });
   await enqueueEmail({ to: 'b@example.com', subject: 'Two', body: 'y' });
 

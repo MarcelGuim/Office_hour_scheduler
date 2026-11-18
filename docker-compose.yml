@@ -16,13 +16,12 @@ services:
       retries: 5
       start_period: 10s
 
-  # One-off step: applies backend/migrations, then exits.
   migrate:
     build: ./backend
     command: ["node", "scripts/migrate.js"]
     environment: &db-env
-      DB_HOST: postgres # the service name above, resolved on Compose's default network
-      DB_PORT: 5432 # port inside the network, not the laptop port
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
@@ -30,19 +29,18 @@ services:
       postgres:
         condition: service_healthy
 
-  # The API. Starts only after the migrations succeeded.
   backend:
     build: ./backend
     environment:
       <<: *db-env
       PORT: 8080
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (at least 32 characters)}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080} # base of the links in offer emails
-      OFFER_WINDOW_SECONDS: ${OFFER_WINDOW_SECONDS:-300} # lower it in .env to test faster
-      # Email: empty SMTP_USER = emails are only printed to the log.
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
-      # Local testing only: /mailbox.html shows queued emails. Never set in the cluster.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      OFFER_WINDOW_SECONDS: ${OFFER_WINDOW_SECONDS:-300}
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
+      GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
       DEV_MAILBOX: "true"
     ports:
       - "8080:8080"

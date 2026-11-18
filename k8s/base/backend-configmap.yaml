@@ -4,4 +4,6 @@ metadata:
   name: app-config
 data:
   PORT: "3000"
-  PUBLIC_BASE_URL: "http://209.38.10.188:8080"
+  PUBLIC_BASE_URL: "https://officehourscheduler.me"
+  COOKIE_SECURE: "true"
+  

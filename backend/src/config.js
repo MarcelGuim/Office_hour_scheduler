@@ -71,14 +71,14 @@ function loadConfig() {
     workerIntervalMs: integer('WORKER_INTERVAL_MS', 2000),
     publicBaseUrl: (process.env.PUBLIC_BASE_URL || 'http://localhost:8080').replace(/\/$/, ''),
 
-    // Email. Without SMTP_USER, emails are printed to the log instead of sent.
-    smtp: process.env.SMTP_USER
+    // Email through the Gmail API (src/email/mailer.js). Without GMAIL_REFRESH_TOKEN,
+    // emails are printed to the log instead of sent.
+    gmail: process.env.GMAIL_REFRESH_TOKEN
       ? {
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: integer('SMTP_PORT', 465),
-          user: process.env.SMTP_USER,
-          password: required('SMTP_APP_PASSWORD'),
-          from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+          clientId: required('GMAIL_CLIENT_ID'),
+          clientSecret: required('GMAIL_CLIENT_SECRET'),
+          refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+          from: process.env.EMAIL_FROM || '', // empty: Gmail uses the authorised account
         }
       : null,
     outboxIntervalMs: integer('OUTBOX_INTERVAL_MS', 2000),
