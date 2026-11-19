@@ -1,0 +1,28 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: office-hour-scheduler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: office-hour-scheduler 
+  minReplicas: 2
+  maxReplicas: 10
+  #scale up if CPU utilization hits 70% or if memory usage hits 256MB
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: AverageValue
+          averageValue: 256Mi
+  behavior: 
+    scaleDown:
+      stabilizationWindowSeconds: 60 #if usage is below the scaling threshold for 1 minute, scale down
