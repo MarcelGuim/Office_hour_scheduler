@@ -1,0 +1,89 @@
+# Nightly logical backup of PostgreSQL to DigitalOcean Spaces.
+# Step 1 (init container, postgres:18): pg_dump in custom format into a scratch volume.
+# Step 2 (container, aws-cli): upload the file to Spaces under postgres/<UTC timestamp>.dump.
+# Needs two Secrets: postgres-secret (already exists) and spaces-backup-secret (see docs/backup-restore.md).
+# Run once now, without waiting for the schedule:
+#   kubectl create job --from=cronjob/postgres-backup backup-manual-$(date +%s)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+spec:
+  schedule: "0 3 * * *"
+  timeZone: America/Toronto
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: pg-dump
+              image: postgres:18
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_DB
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_PASSWORD
+              command: ["/bin/sh", "-c"]
+              # pg_restore --list fails on a truncated or corrupt file, so a bad dump never gets uploaded.
+              args:
+                - >-
+                  set -e;
+                  pg_dump --format=custom --file=/backup/db.dump;
+                  pg_restore --list /backup/db.dump > /dev/null;
+                  ls -l /backup/db.dump
+              volumeMounts:
+                - name: scratch
+                  mountPath: /backup
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+          containers:
+            - name: upload
+              # Pinned below 2.23: newer aws-cli versions send checksum headers that
+              # S3-compatible stores such as Spaces have rejected.
+              image: amazon/aws-cli:2.17.0
+              envFrom:
+                - secretRef:
+                    name: spaces-backup-secret
+              env:
+                # Spaces ignores the region, but aws-cli requires one to be set.
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+              command: ["/bin/sh", "-c"]
+              args:
+                - >-
+                  set -e;
+                  key="postgres/$(date -u +%Y-%m-%dT%H%M%SZ).dump";
+                  aws s3 cp /backup/db.dump "s3://${SPACES_BUCKET}/${key}" --endpoint-url "${SPACES_ENDPOINT}";
+                  echo "uploaded ${key}"
+              volumeMounts:
+                - name: scratch
+                  mountPath: /backup
+                  readOnly: true
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+          volumes:
+            - name: scratch
+              emptyDir: {}

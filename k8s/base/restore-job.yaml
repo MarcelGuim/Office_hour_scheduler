@@ -1,0 +1,75 @@
+# DESTRUCTIVE: replaces the contents of the database with a backup from Spaces.
+# Not applied with the rest of k8s/base. Follow docs/backup-restore.md (scale the backend to 0 first).
+# BACKUP_KEY: the object to restore, e.g. postgres/2026-11-20T080000Z.dump. "latest" picks the newest.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-restore
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: download
+          image: amazon/aws-cli:2.17.0
+          envFrom:
+            - secretRef:
+                name: spaces-backup-secret
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: BACKUP_KEY
+              value: latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - >-
+              set -e;
+              key="${BACKUP_KEY}";
+              if [ "$key" = "latest" ]; then
+                key="postgres/$(aws s3 ls "s3://${SPACES_BUCKET}/postgres/" --endpoint-url "${SPACES_ENDPOINT}" | awk '{print $4}' | sort | tail -n 1)";
+              fi;
+              echo "restoring ${key}";
+              aws s3 cp "s3://${SPACES_BUCKET}/${key}" /backup/db.dump --endpoint-url "${SPACES_ENDPOINT}"
+          volumeMounts:
+            - name: scratch
+              mountPath: /backup
+      containers:
+        - name: pg-restore
+          image: postgres:18
+          env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          command: ["/bin/sh", "-c"]
+          # --single-transaction: on any error nothing is changed.
+          args:
+            - >-
+              set -e;
+              pg_restore --clean --if-exists --no-owner --single-transaction --exit-on-error
+              --dbname="${PGDATABASE}" /backup/db.dump;
+              echo "restore complete"
+          volumeMounts:
+            - name: scratch
+              mountPath: /backup
+              readOnly: true
+      volumes:
+        - name: scratch
+          emptyDir: {}
