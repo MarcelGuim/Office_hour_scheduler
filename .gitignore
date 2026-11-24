@@ -11,3 +11,6 @@ docs/*.md
 # Kubernetes secrets
 *-secret.yaml
 *-secrets.yaml
+# Architecture diagram (local only)
+architecture-full.png
+architecture-compose.png
